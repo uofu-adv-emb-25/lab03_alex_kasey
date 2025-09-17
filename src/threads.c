@@ -1,21 +1,7 @@
-#include <stdio.h>
-#include <FreeRTOS.h>
-#include <semphr.h>
-#include <task.h>
 #include <pico/stdlib.h>
 #include <pico/multicore.h>
 #include <pico/cyw43_arch.h>
-
-#define MAIN_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
-#define MAIN_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
-
-#define SIDE_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
-#define SIDE_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
-
-SemaphoreHandle_t semaphore;
-
-int counter;
-int on;
+#include "threads.h"
 
 void side_thread(void *params)
 {
@@ -26,9 +12,9 @@ void side_thread(void *params)
         {
             current_count = counter;
             counter = counter + 1;
+            printf("hello world from %s! Count %d\n", "thread", current_count);
         }
         xSemaphoreGive(semaphore);
-		printf("hello world from %s! Count %d\n", "thread", current_count);
 	}
 }
 
@@ -41,9 +27,9 @@ void main_thread(void *params)
         xSemaphoreTake(semaphore, 0xffff);
         {
             current_count = counter++;
+            printf("hello world from %s! Count %d\n", "main", current_count);
         }
         xSemaphoreGive(semaphore);
-		printf("hello world from %s! Count %d\n", "main", current_count);
         on = !on;
 	}
 }

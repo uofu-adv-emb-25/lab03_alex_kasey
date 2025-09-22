@@ -1,20 +1,28 @@
+#include <stdio.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
+#include <task.h>
 #include <pico/stdlib.h>
 #include <pico/multicore.h>
 #include <pico/cyw43_arch.h>
-#include "threads.h"
+#include "../include/increment.h"
+
+#define MAIN_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
+#define MAIN_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
+
+#define SIDE_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
+#define SIDE_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
+
+SemaphoreHandle_t semaphore;
+
+int counter;
+int on;
 
 void side_thread(void *params)
 {
 	while (1) {
         vTaskDelay(100);
-        int current_count;
-        xSemaphoreTake(semaphore, 0xffff);
-        {
-            current_count = counter;
-            counter = counter + 1;
-            printf("hello world from %s! Count %d\n", "thread", current_count);
-        }
-        xSemaphoreGive(semaphore);
+        increment_thread_safe(semaphore, &counter, "thread");
 	}
 }
 
@@ -23,13 +31,7 @@ void main_thread(void *params)
 	while (1) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, on);
         vTaskDelay(100);
-        int current_count;
-        xSemaphoreTake(semaphore, 0xffff);
-        {
-            current_count = counter++;
-            printf("hello world from %s! Count %d\n", "main", current_count);
-        }
-        xSemaphoreGive(semaphore);
+        increment_thread_safe(semaphore, &counter, "main");
         on = !on;
 	}
 }

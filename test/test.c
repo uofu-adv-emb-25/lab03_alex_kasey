@@ -2,36 +2,47 @@
 #include <pico/stdlib.h>
 #include <stdint.h>
 #include <unity.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
 #include "unity_config.h"
-#include "threads.h"
+#include "../include/increment.h"
+
+#define HIGHEST_TASK_PRIORITY      ( tskIDLE_PRIORITY + 5UL )
+#define HIGHEST_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
 
 void setUp(void) {}
 
 void tearDown(void) {}
 
-void test_variable_assignment()
-{
-    int x = 1;
-    TEST_ASSERT_TRUE_MESSAGE(x == 1,"Variable assignment failed.");
-}
+// void test_timeout(void)
+// {
+//     int count = 0;
+//     SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);
+//     xSemaphoreTake(semaphore, 0xffff);
+//     TEST_ASSERT_EQUAL(pdFALSE, increment_thread_safe(semaphore, &count));
+// }
 
-void test_multiplication(void)
+void test_increment(void)
 {
-    int x = 30;
-    int y = 6;
-    int z = x / y;
-    TEST_ASSERT_TRUE_MESSAGE(z == 5, "Multiplication of two integers returned incorrect value.");
+    int count = 0;
+    int past_count = 0;
+    SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);
+    for(int i = 0; i < 10; i++) {
+        increment_thread_safe(semaphore, &count, "test_increment");
+        TEST_ASSERT_EQUAL_MESSAGE(past_count + 1, count, "Count value should increment by 1 each time.");
+        past_count = count;
+    }
 }
 
 int main (void)
 {
     stdio_init_all();
+    hard_assert(cyw43_arch_init() == PICO_OK);
     sleep_ms(5000); // Give time for TTY to attach.
     while(1) {
         printf("Start tests\n");
         UNITY_BEGIN();
-        RUN_TEST(test_variable_assignment);
-        RUN_TEST(test_multiplication);
+        RUN_TEST(test_increment);
         sleep_ms(5000);
         UNITY_END();
     }

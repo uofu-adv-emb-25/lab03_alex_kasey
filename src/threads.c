@@ -5,7 +5,7 @@
 #include <pico/stdlib.h>
 #include <pico/multicore.h>
 #include <pico/cyw43_arch.h>
-#include "../include/increment.h"
+#include "../include/functions.h"
 
 #define MAIN_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
 #define MAIN_TASK_STACK_SIZE configMINIMAL_STACK_SIZE

@@ -1,9 +1,11 @@
 #include <stdio.h>
-#include <pico/stdlib.h>
-#include <stdint.h>
-#include <unity.h>
 #include <FreeRTOS.h>
 #include <semphr.h>
+#include <task.h>
+#include <pico/stdlib.h>
+#include <pico/multicore.h>
+#include <pico/cyw43_arch.h>
+#include <unity.h>
 #include "unity_config.h"
 #include "../include/increment.h"
 
@@ -34,17 +36,58 @@ void test_increment(void)
     }
 }
 
+void test_deadlock(void)
+{
+    // Create thread pointers
+    TaskHandle_t thread_a, thread_b;
+    // Create locks
+    SemaphoreHandle_t lock_a = xSemaphoreCreateCounting(1, 1);
+    SemaphoreHandle_t lock_b = xSemaphoreCreateCounting(1, 1);
+
+    // Create thread arguments
+    struct DeadlockArgs thread_a_args = {lock_a, lock_b, 0, "Thread A"};
+    struct DeadlockArgs thread_b_args = {lock_b, lock_a, 50, "Thread B"};
+    
+    // Create threads
+    xTaskCreate(deadlock_thread, "Thread A", configMINIMAL_STACK_SIZE, (void *)&thread_a_args, tskIDLE_PRIORITY + 1UL, &thread_a);
+    xTaskCreate(deadlock_thread, "Thread A", configMINIMAL_STACK_SIZE, (void *)&thread_a_args, tskIDLE_PRIORITY + 1UL, &thread_b);
+
+    printf("Created threads, starting deadlock.");
+    vTaskDelay(1000);
+    // Check status of locks, both should be 0
+    TEST_ASSERT_EQUAL_MESSAGE(0, uxSemaphoreGetCount(lock_a), "lock_a should be acquired by thread_a");
+    TEST_ASSERT_EQUAL_MESSAGE(0, uxSemaphoreGetCount(lock_b), "lock_b should be acquired by thread_b");
+    // Check status of count in each thread, both should be incremented by only 1
+    TEST_ASSERT_EQUAL_MESSAGE(1, thread_a_args.count, "thread_a count should be incremented by 1.");
+    TEST_ASSERT_EQUAL_MESSAGE(51, thread_b_args.count, "thread_b count should be incremented by 1.");
+    // Delete tasks
+    printf("Done with deadlocking threads, killing them.");
+    vTaskDelete(thread_a);
+    vTaskDelete(thread_b);
+    printf("Deadlocking threads deleted.");
+}
+
+void runner(__unused void *args)
+{
+    while(1) {
+        printf("Start tests\n");
+        UNITY_BEGIN();
+        // RUN_TEST(test_increment);
+        // RUN_TEST(test_timeout);
+        RUN_TEST(test_deadlock);
+
+        UNITY_END();
+        sleep_ms(5000);
+    }
+}
+
 int main (void)
 {
     stdio_init_all();
     hard_assert(cyw43_arch_init() == PICO_OK);
     sleep_ms(5000); // Give time for TTY to attach.
-    while(1) {
-        printf("Start tests\n");
-        UNITY_BEGIN();
-        RUN_TEST(test_increment);
-        RUN_TEST(test_timeout);
-        sleep_ms(5000);
-        UNITY_END();
-    }
+    xTaskCreate(runner, "TestRunner",
+                configMINIMAL_STACK_SIZE, NULL, HIGHEST_TASK_PRIORITY, NULL);
+    vTaskStartScheduler();
+    return 0;
 }

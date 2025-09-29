@@ -14,13 +14,13 @@ void setUp(void) {}
 
 void tearDown(void) {}
 
-// void test_timeout(void)
-// {
-//     int count = 0;
-//     SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);
-//     xSemaphoreTake(semaphore, 0xffff);
-//     TEST_ASSERT_EQUAL(pdFALSE, increment_thread_safe(semaphore, &count));
-// }
+void test_timeout(void)
+{
+    int count = 0;
+    SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);
+    xSemaphoreTake(semaphore, 0xffff);
+    TEST_ASSERT_EQUAL_MESSAGE(pdFALSE, increment_thread_safe(semaphore, &count, "test_timeout"), "Semaphore should lock and return false.");
+}
 
 void test_increment(void)
 {
@@ -43,6 +43,7 @@ int main (void)
         printf("Start tests\n");
         UNITY_BEGIN();
         RUN_TEST(test_increment);
+        RUN_TEST(test_timeout);
         sleep_ms(5000);
         UNITY_END();
     }
